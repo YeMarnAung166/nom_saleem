@@ -15,10 +15,10 @@ export default function Settings() {
   const [shareLinks, setShareLinks] = useState([])
   const [showShareModal, setShowShareModal] = useState(false)
   const [newLink, setNewLink] = useState('')
+  const [showInviteCode, setShowInviteCode] = useState(false)
 
   useEffect(() => {
     fetchCouple()
-    fetchShareLinks()
   }, [user])
 
   async function fetchCouple() {
@@ -78,43 +78,137 @@ export default function Settings() {
     }
   }
 
+  function copyInviteCode() {
+    if (couple?.id) {
+      navigator.clipboard.writeText(couple.id)
+      toast.success('Invite code copied!')
+    }
+  }
+
   if (!couple) return <div className="p-4 dark:text-white">Loading...</div>
 
   return (
     <div className="pb-20 p-4 space-y-6">
       <h1 className="text-2xl font-bold dark:text-white">Settings</h1>
+
+      {/* Invite Partner Card */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <h2 className="font-semibold dark:text-white">Invite Partner</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Share this code with your partner so they can join your couple.
+        </p>
+        <button
+          onClick={() => setShowInviteCode(!showInviteCode)}
+          className="mt-3 bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          {showInviteCode ? 'Hide' : 'Show'} Invite Code
+        </button>
+        {showInviteCode && (
+          <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <p className="text-sm font-mono break-all dark:text-white">{couple.id}</p>
+            <button
+              onClick={copyInviteCode}
+              className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm"
+            >
+              Copy Code
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Important Dates Card */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <h2 className="font-semibold dark:text-white">Important Dates</h2>
-        <label className="block mt-2 dark:text-gray-300">Since date</label>
-        <input type="date" value={sinceDate} onChange={e => setSinceDate(e.target.value)} className="border dark:border-gray-700 dark:bg-gray-900 dark:text-white p-2 rounded w-full" />
-        <label className="block mt-2 dark:text-gray-300">Until date</label>
-        <input type="date" value={untilDate} onChange={e => setUntilDate(e.target.value)} className="border dark:border-gray-700 dark:bg-gray-900 dark:text-white p-2 rounded w-full" />
-        <button onClick={updateDates} className="mt-4 bg-pink-600 text-white px-4 py-2 rounded">Save Dates</button>
+        <label className="block mt-2 dark:text-gray-300">Since date (first dated day)</label>
+        <input
+          type="date"
+          value={sinceDate}
+          onChange={(e) => setSinceDate(e.target.value)}
+          className="border dark:border-gray-700 dark:bg-gray-900 dark:text-white p-2 rounded w-full"
+        />
+        <label className="block mt-2 dark:text-gray-300">Until date (anniversary)</label>
+        <input
+          type="date"
+          value={untilDate}
+          onChange={(e) => setUntilDate(e.target.value)}
+          className="border dark:border-gray-700 dark:bg-gray-900 dark:text-white p-2 rounded w-full"
+        />
+        <button
+          onClick={updateDates}
+          className="mt-4 bg-pink-600 text-white px-4 py-2 rounded"
+        >
+          Save Dates
+        </button>
       </div>
+
+      {/* Share Links Card */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <h2 className="font-semibold dark:text-white">Share Links</h2>
         <div className="flex flex-wrap gap-2 mt-2">
-          <button onClick={() => createShareLink()} className="bg-green-600 text-white px-4 py-2 rounded">Share Entire Feed</button>
-          <button onClick={() => { const postId = prompt('Enter post ID (from URL)'); if(postId) createShareLink(postId); }} className="bg-blue-600 text-white px-4 py-2 rounded">Share Single Post</button>
+          <button
+            onClick={() => createShareLink()}
+            className="bg-green-600 text-white px-4 py-2 rounded"
+          >
+            Share Entire Feed
+          </button>
+          <button
+            onClick={() => {
+              const postId = prompt('Enter post ID (from URL)')
+              if (postId) createShareLink(postId)
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            Share Single Post
+          </button>
         </div>
         <div className="mt-4 space-y-2">
-          {shareLinks.map(link => (
-            <div key={link.id} className="border dark:border-gray-700 p-2 rounded flex justify-between items-center">
-              <span className="text-sm truncate dark:text-white">{link.post_id ? `Post: ${link.post_id.slice(0,8)}` : 'Full Feed'} - {link.active ? 'Active' : 'Revoked'}</span>
-              {link.active && <button onClick={() => revokeLink(link.id)} className="bg-red-500 text-white px-2 py-1 rounded text-sm">Revoke</button>}
+          {shareLinks.map((link) => (
+            <div
+              key={link.id}
+              className="border dark:border-gray-700 p-2 rounded flex justify-between items-center"
+            >
+              <span className="text-sm truncate dark:text-white">
+                {link.post_id ? `Post: ${link.post_id.slice(0, 8)}` : 'Full Feed'} -{' '}
+                {link.active ? 'Active' : 'Revoked'}
+              </span>
+              {link.active && (
+                <button
+                  onClick={() => revokeLink(link.id)}
+                  className="bg-red-500 text-white px-2 py-1 rounded text-sm"
+                >
+                  Revoke
+                </button>
+              )}
             </div>
           ))}
         </div>
       </div>
+
+      {/* Appearance Card */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <h2 className="font-semibold dark:text-white">Appearance</h2>
-        <button onClick={() => setDark(!dark)} className="mt-2 bg-gray-200 dark:bg-gray-700 dark:text-white px-4 py-2 rounded">
+        <button
+          onClick={() => setDark(!dark)}
+          className="mt-2 bg-gray-200 dark:bg-gray-700 dark:text-white px-4 py-2 rounded"
+        >
           {dark ? 'Light Mode' : 'Dark Mode'}
         </button>
       </div>
-      <button onClick={signOut} className="bg-gray-600 text-white px-4 py-2 rounded w-full">Logout</button>
+
+      {/* Logout Button */}
+      <button
+        onClick={signOut}
+        className="bg-gray-600 text-white px-4 py-2 rounded w-full"
+      >
+        Logout
+      </button>
+
       <BottomNav />
-      {showShareModal && <ShareLinkModal link={newLink} onClose={() => setShowShareModal(false)} />}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <ShareLinkModal link={newLink} onClose={() => setShowShareModal(false)} />
+      )}
     </div>
   )
 }
