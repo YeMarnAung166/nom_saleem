@@ -5,3 +5,11 @@
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+html {
+  visibility: visible;
+}
+img, video {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}

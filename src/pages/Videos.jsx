@@ -67,19 +67,14 @@ export default function Videos() {
                   className="w-full"
                 />
               ) : (
-                <div
-                  className="relative cursor-pointer"
-                  onClick={() => setPlayingId(video.id)}
-                >
+                <div className="aspect-video w-full rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
                   <video
                     src={video.media_url}
                     poster={video.thumbnail_url || undefined}
                     controls
-                    className="w-full rounded-lg"
+                    preload="metadata"
+                    className="w-full h-full object-contain"
                   />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                    <Play size={48} className="text-white" />
-                  </div>
                 </div>
               )}
             </div>
