@@ -2,14 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Smooth scrolling and better touch handling */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom scrollbar (modern) */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Safe area for notched phones */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-html {
-  visibility: visible;
-}
+/* Better image/video loading */
 img, video {
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
+}
+
+/* Glassmorphism helper (for modals) */
+.glass {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.dark .glass {
+  background: rgba(0, 0, 0, 0.3);
 }

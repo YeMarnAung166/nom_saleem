@@ -5,12 +5,12 @@ import { PostSkeleton } from './Skeleton'
 import EmptyState from './EmptyState'
 import { useNavigate } from 'react-router-dom'
 import { usePlayOnScroll } from '../hooks/usePlayOnScroll'
+import { Eye, Heart } from 'lucide-react'
 
-// Video player component with scroll-to-play
 function ScrollVideo({ src, poster }) {
   const videoRef = usePlayOnScroll()
   return (
-    <div className="aspect-video w-full mt-2 overflow-hidden bg-gray-100 dark:bg-gray-800 rounded">
+    <div className="relative aspect-video w-full mt-2 overflow-hidden rounded-xl bg-black/5">
       <video
         ref={videoRef}
         src={src}
@@ -50,20 +50,32 @@ export default function RecentPosts({ coupleId }) {
   if (posts.length === 0) return <EmptyState type="home" />
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-semibold dark:text-white">Recent memories</h2>
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold dark:text-white px-1">✨ Recent memories</h2>
       {posts.map(post => (
-        <div key={post.id} className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow cursor-pointer" onClick={() => navigate(`/post/${post.id}`)}>
-          <p className="text-xs text-gray-400 dark:text-gray-500">{formatRelative(post.created_at)}</p>
-          {post.content_type === 'note' && (
-            <p className="mt-1 dark:text-gray-200 line-clamp-3">{post.text_content}</p>
-          )}
+        <div
+          key={post.id}
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden active:scale-[0.99] transition-transform duration-150"
+          onClick={() => navigate(`/post/${post.id}`)}
+        >
+          <div className="p-3 pb-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400">{formatRelative(post.created_at)}</p>
+            {post.content_type === 'note' && (
+              <p className="mt-2 text-gray-700 dark:text-gray-200 line-clamp-3">{post.text_content}</p>
+            )}
+          </div>
           {post.content_type === 'photo' && (
-            <img src={post.media_url} className="w-full rounded mt-2" alt="memory" loading="lazy" />
+            <img src={post.media_url} className="w-full max-h-80 object-cover" alt="memory" loading="lazy" />
           )}
           {post.content_type === 'video' && (
             <ScrollVideo src={post.media_url} poster={post.thumbnail_url} />
           )}
+          <div className="p-3 pt-2 flex justify-between items-center text-gray-400 text-xs">
+            <span className="capitalize">{post.content_type}</span>
+            <span className="flex items-center gap-1">
+              <Eye size={12} /> 0
+            </span>
+          </div>
         </div>
       ))}
     </div>

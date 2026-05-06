@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { Calendar, Heart } from 'lucide-react'
 
 export default function LiveCounter({ sinceDate, untilDate }) {
   const [since, setSince] = useState({ days: 0, hours: 0, minutes: 0 })
@@ -7,7 +8,6 @@ export default function LiveCounter({ sinceDate, untilDate }) {
 
   function updateCounters() {
     const now = new Date()
-    // Since counter
     const sinceTarget = new Date(sinceDate)
     const diffSince = now - sinceTarget
     const daysSince = Math.floor(diffSince / (1000 * 60 * 60 * 24))
@@ -15,7 +15,6 @@ export default function LiveCounter({ sinceDate, untilDate }) {
     const minutesSince = Math.floor((diffSince % 3600000) / 60000)
     setSince({ days: daysSince, hours: hoursSince, minutes: minutesSince })
 
-    // Until counter
     const untilTarget = new Date(untilDate)
     const diffUntil = untilTarget - now
     if (diffUntil <= 0) {
@@ -35,14 +34,28 @@ export default function LiveCounter({ sinceDate, untilDate }) {
   }, [sinceDate, untilDate])
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 space-y-4">
-      <div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">Since {new Date(sinceDate).toLocaleDateString()}</p>
-        <p className="text-2xl font-bold dark:text-white">{since.days} days, {since.hours} hr, {since.minutes} min</p>
+    <div className="grid grid-cols-2 gap-4">
+      <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-pink-100 dark:border-gray-700">
+        <div className="flex items-center gap-2 text-pink-500 mb-2">
+          <Heart size={20} />
+          <span className="text-sm font-medium">Since</span>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(sinceDate).toLocaleDateString()}</p>
+        <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">
+          {since.days} <span className="text-sm font-normal">days</span>
+        </p>
+        <p className="text-xs text-gray-500">{since.hours}h {since.minutes}m</p>
       </div>
-      <div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">Until {new Date(untilDate).toLocaleDateString()}</p>
-        <p className="text-2xl font-bold dark:text-white">{until.days} days, {until.hours} hr, {until.minutes} min</p>
+      <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-purple-100 dark:border-gray-700">
+        <div className="flex items-center gap-2 text-purple-500 mb-2">
+          <Calendar size={20} />
+          <span className="text-sm font-medium">Until</span>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(untilDate).toLocaleDateString()}</p>
+        <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">
+          {until.days} <span className="text-sm font-normal">days</span>
+        </p>
+        <p className="text-xs text-gray-500">{until.hours}h {until.minutes}m</p>
       </div>
     </div>
   )

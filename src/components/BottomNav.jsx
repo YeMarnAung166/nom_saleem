@@ -11,17 +11,19 @@ export default function BottomNav() {
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-around py-2 pb-safe z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 flex justify-around items-center py-2 pb-safe z-50 shadow-lg">
       {navItems.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
           to={to}
           className={({ isActive }) =>
-            `flex flex-col items-center p-2 ${isActive ? 'text-pink-500' : 'text-gray-500 dark:text-gray-400'}`
+            `flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200 ${
+              isActive ? 'text-pink-500 scale-105' : 'text-gray-500 dark:text-gray-400'
+            }`
           }
         >
-          <Icon size={24} />
-          <span className="text-xs mt-1">{label}</span>
+          <Icon size={22} strokeWidth={1.5} />
+          <span className="text-[11px] mt-0.5 font-medium">{label}</span>
         </NavLink>
       ))}
     </div>
