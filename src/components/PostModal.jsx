@@ -11,41 +11,91 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setUploading(true)
-    let mediaUrl = null
-    if (file && (type === 'photo' || type === 'video')) {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}.${fileExt}`
-      const { error } = await supabase.storage
-        .from('posts')
-        .upload(`${coupleId}/${fileName}`, file)
-      if (error) {
-        toast.error(error.message)
-        setUploading(false)
-        return
-      }
-      const { data: { publicUrl } } = supabase.storage
-        .from('posts')
-        .getPublicUrl(`${coupleId}/${fileName}`)
-      mediaUrl = publicUrl
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0]
+    if (!selectedFile) return
+
+    // Validate file type
+    const isImage = selectedFile.type.startsWith('image/')
+    const isVideo = selectedFile.type.startsWith('video/')
+    if ((type === 'photo' && !isImage) || (type === 'video' && !isVideo)) {
+      toast.error(`Please select a valid ${type}`)
+      e.target.value = ''
+      return
     }
+
+    // Validate file size (50MB max)
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      toast.error('File too large (max 50MB)')
+      e.target.value = ''
+      return
+    }
+
+    setFile(selectedFile)
+  }
+
+  const uploadMedia = async () => {
+    if (!file) return null
+
+    // Create unique file path: coupleId/timestamp_filename
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`
+    const filePath = `${coupleId}/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('couple-memories')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type // important for videos
+      })
+
+    if (uploadError) {
+      toast.error('Upload failed: ' + uploadError.message)
+      return null
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('couple-memories')
+      .getPublicUrl(filePath)
+
+    return publicUrl
+  }
+
+  const savePost = async (mediaUrl) => {
     const { error } = await supabase.from('posts').insert({
       couple_id: coupleId,
       author_id: user.id,
       content_type: type,
-      text_content: type === 'note' ? text : text || '',
+      text_content: type === 'note' ? text : (text || ''),
       media_url: mediaUrl
     })
-    setUploading(false)
     if (error) {
-      toast.error(error.message)
+      toast.error('Failed to save memory: ' + error.message)
     } else {
       toast.success('Memory saved!')
       onPostCreated()
       onClose()
     }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (type === 'note') {
+      await savePost(null)
+      return
+    }
+    if (!file) {
+      toast.error(`Please select a ${type}`)
+      return
+    }
+    setUploading(true)
+    const mediaUrl = await uploadMedia()
+    if (mediaUrl) {
+      await savePost(mediaUrl)
+    }
+    setUploading(false)
   }
 
   return (
@@ -61,7 +111,10 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
               <button
                 key={t}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => {
+                  setType(t)
+                  setFile(null) // reset file when switching type
+                }}
                 className={`flex-1 py-2 rounded-lg capitalize ${type === t ? 'bg-pink-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}
               >
                 {t === 'note' && <FileText className="inline mr-1" size={16} />}
@@ -71,6 +124,7 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
               </button>
             ))}
           </div>
+
           {type === 'note' && (
             <textarea
               value={text}
@@ -80,15 +134,28 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
               required
             />
           )}
+
           {(type === 'photo' || type === 'video') && (
-            <input
-              type="file"
-              accept={type === 'photo' ? 'image/*' : 'video/*'}
-              onChange={(e) => setFile(e.target.files[0])}
-              required
-            />
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <input
+                type="file"
+                accept={type === 'photo' ? 'image/*' : 'video/*'}
+                onChange={handleFileChange}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
+              />
+              {file && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Selected: {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
           )}
-          <button type="submit" disabled={uploading} className="w-full bg-pink-600 text-white py-2 rounded-lg disabled:opacity-50">
+
+          <button
+            type="submit"
+            disabled={uploading}
+            className="w-full bg-pink-600 text-white py-2 rounded-lg disabled:opacity-50"
+          >
             {uploading ? 'Uploading...' : 'Post'}
           </button>
         </form>
