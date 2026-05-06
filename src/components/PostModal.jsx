@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { X, Image, Video, FileText } from 'lucide-react'
@@ -9,13 +9,15 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
   const [type, setType] = useState('note')
   const [text, setText] = useState('')
   const [file, setFile] = useState(null)
+  const [thumbnail, setThumbnail] = useState(null)   // stores thumbnail blob
   const [uploading, setUploading] = useState(false)
+  const videoPreviewRef = useRef(null)
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
     if (!selectedFile) return
 
-    // Validate file type
+    // Validate file type and size
     const isImage = selectedFile.type.startsWith('image/')
     const isVideo = selectedFile.type.startsWith('video/')
     if ((type === 'photo' && !isImage) || (type === 'video' && !isVideo)) {
@@ -23,8 +25,6 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
       e.target.value = ''
       return
     }
-
-    // Validate file size (50MB max)
     if (selectedFile.size > 50 * 1024 * 1024) {
       toast.error('File too large (max 50MB)')
       e.target.value = ''
@@ -32,44 +32,99 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
     }
 
     setFile(selectedFile)
+
+    // For videos, generate a thumbnail immediately
+    if (type === 'video') {
+      generateThumbnail(selectedFile)
+    } else {
+      setThumbnail(null)
+    }
+  }
+
+  const generateThumbnail = (videoFile) => {
+    const url = URL.createObjectURL(videoFile)
+    const video = document.createElement('video')
+    video.src = url
+    video.muted = true
+    video.crossOrigin = 'Anonymous'
+    video.currentTime = 0.1  // seek to 0.1 seconds to avoid black frame
+
+    video.addEventListener('loadeddata', () => {
+      video.play().then(() => {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => {
+          setThumbnail(blob)
+          URL.revokeObjectURL(url)
+        }, 'image/jpeg', 0.8)
+        video.pause()
+        video.currentTime = 0
+      }).catch(err => {
+        console.warn('Thumbnail generation failed', err)
+      })
+    })
   }
 
   const uploadMedia = async () => {
     if (!file) return null
 
-    // Create unique file path: coupleId/timestamp_filename
+    // Create unique file paths
     const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`
-    const filePath = `${coupleId}/${fileName}`
+    const timestamp = Date.now()
+    const fileName = `${timestamp}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`
+    const videoPath = `${coupleId}/videos/${fileName}`
 
-    const { error: uploadError } = await supabase.storage
+    // Upload video
+    const { error: videoError } = await supabase.storage
       .from('couple-memories')
-      .upload(filePath, file, {
+      .upload(videoPath, file, {
         cacheControl: '3600',
-        upsert: false,
-        contentType: file.type // important for videos
+        contentType: file.type
       })
-
-    if (uploadError) {
-      toast.error('Upload failed: ' + uploadError.message)
+    if (videoError) {
+      toast.error('Video upload failed: ' + videoError.message)
       return null
     }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl: videoUrl } } = supabase.storage
       .from('couple-memories')
-      .getPublicUrl(filePath)
+      .getPublicUrl(videoPath)
 
-    return publicUrl
+    let thumbnailUrl = null
+    if (thumbnail && type === 'video') {
+      // Upload thumbnail
+      const thumbExt = 'jpg'
+      const thumbName = `${timestamp}_thumb.${thumbExt}`
+      const thumbPath = `${coupleId}/thumbnails/${thumbName}`
+      const { error: thumbError } = await supabase.storage
+        .from('couple-memories')
+        .upload(thumbPath, thumbnail, {
+          cacheControl: '3600',
+          contentType: 'image/jpeg'
+        })
+      if (!thumbError) {
+        const { data: { publicUrl: thumbPublicUrl } } = supabase.storage
+          .from('couple-memories')
+          .getPublicUrl(thumbPath)
+        thumbnailUrl = thumbPublicUrl
+      } else {
+        console.warn('Thumbnail upload failed', thumbError)
+      }
+    }
+
+    return { videoUrl, thumbnailUrl }
   }
 
-  const savePost = async (mediaUrl) => {
+  const savePost = async (mediaUrl, thumbnailUrl) => {
     const { error } = await supabase.from('posts').insert({
       couple_id: coupleId,
       author_id: user.id,
       content_type: type,
       text_content: type === 'note' ? text : (text || ''),
-      media_url: mediaUrl
+      media_url: mediaUrl,
+      thumbnail_url: thumbnailUrl   // new column
     })
     if (error) {
       toast.error('Failed to save memory: ' + error.message)
@@ -83,17 +138,21 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (type === 'note') {
-      await savePost(null)
+      await savePost(null, null)
       return
     }
     if (!file) {
       toast.error(`Please select a ${type}`)
       return
     }
+    if (type === 'video' && !thumbnail) {
+      toast.error('Generating thumbnail, please wait...')
+      return
+    }
     setUploading(true)
-    const mediaUrl = await uploadMedia()
-    if (mediaUrl) {
-      await savePost(mediaUrl)
+    const result = await uploadMedia()
+    if (result && result.videoUrl) {
+      await savePost(result.videoUrl, result.thumbnailUrl)
     }
     setUploading(false)
   }
@@ -113,7 +172,8 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
                 type="button"
                 onClick={() => {
                   setType(t)
-                  setFile(null) // reset file when switching type
+                  setFile(null)
+                  setThumbnail(null)
                 }}
                 className={`flex-1 py-2 rounded-lg capitalize ${type === t ? 'bg-pink-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}
               >
@@ -145,15 +205,20 @@ export default function PostModal({ coupleId, onClose, onPostCreated }) {
               />
               {file && (
                 <p className="mt-2 text-xs text-gray-500">
-                  Selected: {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                  {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
                 </p>
+              )}
+              {thumbnail && type === 'video' && (
+                <div className="mt-2">
+                  <p className="text-xs text-green-600">✓ Thumbnail ready</p>
+                </div>
               )}
             </div>
           )}
 
           <button
             type="submit"
-            disabled={uploading}
+            disabled={uploading || (type === 'video' && !thumbnail)}
             className="w-full bg-pink-600 text-white py-2 rounded-lg disabled:opacity-50"
           >
             {uploading ? 'Uploading...' : 'Post'}
